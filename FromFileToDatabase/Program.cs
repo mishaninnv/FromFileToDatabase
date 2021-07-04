@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Configuration;
 using System.Collections.Generic;
 using System.IO;
 using System.Text.RegularExpressions;
@@ -10,26 +11,29 @@ namespace FromFileToDatabase
     {
         static void Main(string[] args)
         {
-            var path = @"C:\Users\misha\Desktop\newdocument.txt";
+            var path = GetConfigValue("filePath");
 
-            var file = ReadFile(path);
-            if (string.IsNullOrEmpty(file)) return;
+            var dataFromFile = ReadFile(path);
+            if (string.IsNullOrEmpty(dataFromFile)) return;
 
             var pattern = @"\S+";
-            var filteredData = FilterData(pattern, file, 3, 20);
+            var minLength = Convert.ToInt32(GetConfigValue("minLength"));
+            var maxLength = Convert.ToInt32(GetConfigValue("maxLength"));
+            var filteredData = FilterData(pattern, dataFromFile, minLength, maxLength);
 
             var wordCounts = GetWordCounts(filteredData);
 
-            var dbHandler = new DatabaseHandler("DataBaseTest");
+            var dbName = GetConfigValue("db");
+            var dbHandler = new DatabaseHandler(dbName);
             dbHandler.WriteDataToDb(wordCounts);
         }
 
         private static string ReadFile(string filePath)
         {
-            return CheckFile(filePath) ? File.ReadAllText(filePath) : string.Empty;
+            return CheckFileExistence(filePath) ? File.ReadAllText(filePath) : string.Empty;
         }
 
-        private static bool CheckFile(string filePath)
+        private static bool CheckFileExistence(string filePath)
         {
             if (File.Exists(filePath)) return true;
 
@@ -37,26 +41,32 @@ namespace FromFileToDatabase
             return false;
         }
 
-        private static IEnumerable<Match> FilterData(string pattern, string file, int minLength, int maxLength)
+        private static IEnumerable<Match> FilterData(string pattern, string data, int minLength, int maxLength)
         {
-            return Regex.Matches(file, pattern).Where(x => x.Length >= minLength && x.Length <= maxLength);
+            return Regex.Matches(data, pattern).Where(x => x.Length >= minLength && x.Length <= maxLength);
         }
 
-        private static List<WordCount> GetWordCounts(IEnumerable<Match> filteredFile)
+        private static List<WordCount> GetWordCounts(IEnumerable<Match> words)
         {
-            var selectedByCount = SelectionByCount(filteredFile);
-            var wordCounts = ConvertToWordCounts(selectedByCount);
-            return wordCounts;
+            var minCount = Convert.ToInt32(GetConfigValue("minCount"));
+            var filteredWords = FilterDataByMinCount(words, minCount);
+            var result = ConvertToWordCounts(filteredWords);
+            return result;
         }
 
-        private static IEnumerable<IGrouping<string, Match>> SelectionByCount(IEnumerable<Match> filteredFile)
+        private static IEnumerable<IGrouping<string, Match>> FilterDataByMinCount(IEnumerable<Match> filteredFile, int minCount)
         { 
-            return filteredFile.GroupBy(x => x.ToString()).Where(x => x.Count() > 3);
+            return filteredFile.GroupBy(x => x.ToString()).Where(x => x.Count() >= minCount);
         }
 
-        private static List<WordCount> ConvertToWordCounts(IEnumerable<IGrouping<string, Match>> selectedByCount)
+        private static List<WordCount> ConvertToWordCounts(IEnumerable<IGrouping<string, Match>> data)
         { 
-            return selectedByCount.Select(x => new WordCount { Name = x.Key.ToString(), Count = x.Count() }).ToList<WordCount>();
+            return data.Select(x => new WordCount { Name = x.Key.ToString(), Count = x.Count() }).ToList<WordCount>();
+        }
+
+        internal static string GetConfigValue(string key)
+        {
+            return ConfigurationManager.AppSettings.Get(key);
         }
     }
 

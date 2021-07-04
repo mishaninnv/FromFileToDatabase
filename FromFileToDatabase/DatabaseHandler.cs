@@ -1,17 +1,17 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using Microsoft.Data.SqlClient;
 
 namespace FromFileToDatabase
 {
     public class DatabaseHandler
     {
+        string tableName = Program.GetConfigValue("table");
         SqlConnection sqlConn;
         SqlCommand sqlCmd = new SqlCommand();
 
         public DatabaseHandler(string databaseName)
         {
-            string serverConnStr = @"Server=localhost\SQLEXPRESS01;Trusted_Connection=True;";
+            string serverConnStr = Program.GetConfigValue("connectionString");
             sqlConn = new SqlConnection(serverConnStr);
             sqlConn.Open();
 
@@ -39,13 +39,13 @@ namespace FromFileToDatabase
 
         private void CreateTable()
         {
-            var cmdString =
+            var cmdString = string.Format(
                 @"IF NOT (EXISTS ( SELECT * FROM DataBaseTest.INFORMATION_SCHEMA.TABLES
-                        WHERE TABLE_NAME = 'Words'))
-                        CREATE TABLE Words (
+                        WHERE TABLE_NAME = '{0}'))
+                        CREATE TABLE {0} (
                         word NVARCHAR(200) UNIQUE, 
                         count INT
-                        )";
+                        )", tableName);
 
             UsingCommand(cmdString);
         }
@@ -71,7 +71,7 @@ namespace FromFileToDatabase
 
         private SqlDataReader GetDbReader(string word)
         {
-            var cmdString = string.Format(@"SELECT * FROM Words WHERE word = '{0}'", word);
+            var cmdString = string.Format(@"SELECT * FROM {0} WHERE word = '{1}'", tableName, word);
             sqlCmd = new SqlCommand(cmdString, sqlConn);
             return sqlCmd.ExecuteReader();
         }
@@ -85,18 +85,18 @@ namespace FromFileToDatabase
             return currCount;
         }
 
-        private void UpdateData(string changeWord, int value)
+        private void UpdateData(string word, int value)
         {
-            var cmdString = string.Format(@"UPDATE Words SET count = {0}
-                                            WHERE word = '{1}'", value, changeWord);
+            var cmdString = string.Format(@"UPDATE {0} SET count = {1}
+                                            WHERE word = '{2}'", tableName, value, word);
 
             UsingCommand(cmdString);
         }
 
         private void InsertData(string word, int value)
         {
-            var cmdString = string.Format(@"INSERT Words(word, count)
-                                            VALUES ('{0}', {1})", word, value);
+            var cmdString = string.Format(@"INSERT {0}(word, count)
+                                            VALUES ('{1}', {2})", tableName, word, value);
 
             UsingCommand(cmdString);
         }
