@@ -5,24 +5,25 @@ namespace FromFileToDatabase
 {
     public class DatabaseHandler
     {
-        string tableName = Program.GetConfigValue("table");
-        SqlConnection sqlConn;
-        SqlCommand sqlCmd = new SqlCommand();
+        private static string TableName => Program.GetConfigValue("tableName");
+
+        private readonly SqlConnection _sqlConn;
+        private SqlCommand _sqlCmd = new SqlCommand();
 
         public DatabaseHandler(string databaseName)
         {
-            string serverConnStr = Program.GetConfigValue("connectionString");
-            sqlConn = new SqlConnection(serverConnStr);
-            sqlConn.Open();
+            var serverConnStr = Program.GetConfigValue("connectionString");
+            _sqlConn = new SqlConnection(serverConnStr);
+            _sqlConn.Open();
 
             InitializeDb(databaseName);
         }
 
-        public void InitializeDb(string databaseName)
+        private void InitializeDb(string databaseName)
         {
             CreateDbIfNotExists(databaseName);
 
-            string dbConnStr = string.Format(@"USE {0}", databaseName);
+            var dbConnStr = $@"USE {databaseName}";
             UsingCommand(dbConnStr);
 
             CreateTable();
@@ -45,12 +46,12 @@ namespace FromFileToDatabase
                         CREATE TABLE {0} (
                         word NVARCHAR(200) UNIQUE, 
                         count INT
-                        )", tableName);
+                        )", TableName);
 
             UsingCommand(cmdString);
         }
 
-        public void WriteDataToDb(List<WordCount> inputData)
+        public void WriteDataToDb(IEnumerable<WordCount> inputData)
         {
             foreach (var word in inputData)
             {
@@ -71,9 +72,9 @@ namespace FromFileToDatabase
 
         private SqlDataReader GetDbReader(string word)
         {
-            var cmdString = string.Format(@"SELECT * FROM {0} WHERE word = '{1}'", tableName, word);
-            sqlCmd = new SqlCommand(cmdString, sqlConn);
-            return sqlCmd.ExecuteReader();
+            var cmdString = $@"SELECT * FROM {TableName} WHERE word = '{word}'";
+            _sqlCmd = new SqlCommand(cmdString, _sqlConn);
+            return _sqlCmd.ExecuteReader();
         }
 
         private int GetNewCount(SqlDataReader reader, WordCount word)
@@ -87,24 +88,24 @@ namespace FromFileToDatabase
 
         private void UpdateData(string word, int value)
         {
-            var cmdString = string.Format(@"UPDATE {0} SET count = {1}
-                                            WHERE word = '{2}'", tableName, value, word);
+            var cmdString = $@"UPDATE {TableName} SET count = {value}
+                                            WHERE word = '{word}'";
 
             UsingCommand(cmdString);
         }
 
         private void InsertData(string word, int value)
         {
-            var cmdString = string.Format(@"INSERT {0}(word, count)
-                                            VALUES ('{1}', {2})", tableName, word, value);
+            var cmdString = $@"INSERT {TableName}(word, count)
+                               VALUES ('{word}', {value})";
 
             UsingCommand(cmdString);
         }
 
         private void UsingCommand(string cmdString)
         {
-            sqlCmd = new SqlCommand(cmdString, sqlConn);
-            sqlCmd.ExecuteNonQuery();
+            _sqlCmd = new SqlCommand(cmdString, _sqlConn);
+            _sqlCmd.ExecuteNonQuery();
         }
     }
 }

@@ -7,23 +7,23 @@ using System.Linq;
 
 namespace FromFileToDatabase
 {
-    class Program
+    internal static class Program
     {
-        static void Main(string[] args)
+        public static void Main()
         {
             var path = GetConfigValue("filePath");
 
             var dataFromFile = ReadFile(path);
             if (string.IsNullOrEmpty(dataFromFile)) return;
 
-            var pattern = @"\S+";
+            const string pattern = @"\S+";
             var minLength = Convert.ToInt32(GetConfigValue("minLength"));
             var maxLength = Convert.ToInt32(GetConfigValue("maxLength"));
             var filteredData = FilterData(pattern, dataFromFile, minLength, maxLength);
 
             var wordCounts = GetWordCounts(filteredData);
 
-            var dbName = GetConfigValue("db");
+            var dbName = GetConfigValue("dbName");
             var dbHandler = new DatabaseHandler(dbName);
             dbHandler.WriteDataToDb(wordCounts);
         }
@@ -61,7 +61,7 @@ namespace FromFileToDatabase
 
         private static List<WordCount> ConvertToWordCounts(IEnumerable<IGrouping<string, Match>> data)
         { 
-            return data.Select(x => new WordCount { Name = x.Key.ToString(), Count = x.Count() }).ToList<WordCount>();
+            return data.Select(x => new WordCount { Name = x.Key.ToString(), Count = x.Count() }).ToList();
         }
 
         internal static string GetConfigValue(string key)
